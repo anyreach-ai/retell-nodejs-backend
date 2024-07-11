@@ -5,8 +5,9 @@ import { createServer, Server as HTTPServer } from "http";
 import cors from "cors";
 import { TwilioClient } from "./twilio_api";
 import { Retell } from "retell-sdk";
-import { RegisterCallResponse } from "retell-sdk/resources/call";
+// import { RegisterCallResponse } from "retell-sdk/resources/call";
 import { CustomLlmRequest, CustomLlmResponse } from "./types";
+
 // Any one of these following LLM clients can be used to generate responses.
 import { FunctionCallingLlmClient } from "./llms/llm_openai_func_call";
 // import { DemoLlmClient } from "./llms/llm_azure_openai";
