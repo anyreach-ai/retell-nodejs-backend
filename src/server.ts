@@ -3,9 +3,9 @@ import expressWs from "express-ws";
 import { RawData, WebSocket } from "ws";
 import { createServer, Server as HTTPServer } from "http";
 import cors from "cors";
-import { TwilioClient } from "./twilio_api";
+// import { TwilioClient } from "./twilio_api";
 import { Retell } from "retell-sdk";
-// import { RegisterCallResponse } from "retell-sdk/resources/call";
+import RetellClient from 'retell-sdk'; // Adjusted import
 import { CustomLlmRequest, CustomLlmResponse } from "./types";
 
 // Any one of these following LLM clients can be used to generate responses.
@@ -19,7 +19,7 @@ export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
   private retellClient: Retell;
-  private twilioClient: TwilioClient;
+  // private twilioClient: TwilioClient;
 
   constructor() {
     this.app = expressWs(express()).app;
@@ -28,12 +28,14 @@ export class Server {
     this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
 
-    this.retellClient = new Retell({
-      apiKey: process.env.RETELL_API_KEY,
-    });
-    this.twilioClient = new TwilioClient(this.retellClient);
-    this.twilioClient.ListenTwilioVoiceWebhook(this.app);
+    const retellClient = new RetellClient({
+  apiKey: process.env.RETELL_API_KEY,
+});
 
+    // this.twilioClient = new TwilioClient(this.retellClient);
+    // this.twilioClient.ListenTwilioVoiceWebhook(this.app);
+
+    this.retellClient = retellClient;
     this.handleRetellLlmWebSocket();
     this.handleRegisterCallAPI();
     this.handleWebhook();
@@ -95,22 +97,18 @@ export class Server {
         const { agent_id } = req.body;
 
         try {
-          const callResponse: RegisterCallResponse =
-            await this.retellClient.call.register({
-              agent_id: agent_id,
-              audio_websocket_protocol: "web",
-              audio_encoding: "s16le",
-              sample_rate: 24000,
-            });
-          // Send back the successful response to the client
-          res.json(callResponse);
-        } catch (error) {
-          console.error("Error registering call:", error);
-          // Send an error response back to the client
-          res.status(500).json({ error: "Failed to register call" });
-        }
-      },
-    );
+    const callResponse = await this.retellClient.call.createWebCall({
+      agent_id: agent_id,
+    });
+
+    // Send back the successful response to the client
+    res.json(callResponse);
+  } catch (error) {
+    console.error('Error creating web call:', error);
+    // Send an error response back to the client
+    res.status(500).json({ error: 'Failed to create web call' });
+  }
+});
   }
 
   /* Start a websocket server to exchange text input and output with Retell server. Retell server 

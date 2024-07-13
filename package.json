@@ -13,9 +13,11 @@
     "dotenv": "^16.4.1",
     "express": "^4.18.2",
     "express-ws": "^5.0.2",
+    "install": "^0.13.0",
+    "npm": "^10.8.2",
     "openai": "^4.26.0",
-    "retell-client-js-sdk": "^2.0.0",
-    "retell-sdk": "^3.20.0",
+    "retell-client-js-sdk": "^1.0.0",
+    "retell-sdk": "^4.0.0",
     "twilio": "^4.21.0"
   },
   "devDependencies": {

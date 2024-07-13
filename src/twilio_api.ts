@@ -2,14 +2,14 @@ import { Request, Response } from "express";
 import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
 import expressWs from "express-ws";
 import twilio, { Twilio } from "twilio";
-import Retell from "retell-sdk";
-import { RegisterCallResponse } from "retell-sdk/src/resources";
+import RetellClient from "retell-sdk"; // Adjusted import
+import { Call } from "retell-sdk/src/resources";
 
 export class TwilioClient {
   private twilio: Twilio;
-  private retellClient: Retell;
+  private retellClient: RetellClient;
 
-  constructor(retellClient: Retell) {
+  constructor(retellClient: RetellClient) {
     this.twilio = twilio(
       process.env.TWILIO_ACCOUNT_ID,
       process.env.TWILIO_AUTH_TOKEN,
@@ -121,7 +121,7 @@ export class TwilioClient {
         const agent_id = req.params.agent_id;
         const { AnsweredBy, from, to, callSid } = req.body;
         try {
-          // Respond with TwiML to hang up the call if its machine)
+          // Respond with TwiML to hang up the call if it's a machine
           if (AnsweredBy && AnsweredBy === "machine_start") {
             this.EndCall(req.body.CallSid);
             return;
@@ -129,16 +129,14 @@ export class TwilioClient {
             return;
           }
 
-          const callResponse: RegisterCallResponse =
-            await this.retellClient.call.register({
-              agent_id: agent_id,
-              audio_websocket_protocol: "twilio",
-              audio_encoding: "mulaw",
-              sample_rate: 8000,
-              from_number: from,
-              to_number: to,
-              metadata: { twilio_call_sid: callSid },
-            });
+          // Updated code to use createPhoneCall instead of register
+          const callResponse = await this.retellClient.call.createPhoneCall({
+            // agent_id: agent_id,
+            from_number: from,
+            to_number: to,
+            metadata: { twilio_call_sid: callSid },
+          });
+
           if (callResponse) {
             // Start phone call websocket
             const response = new VoiceResponse();
