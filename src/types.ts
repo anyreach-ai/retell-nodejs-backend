@@ -9,7 +9,7 @@ interface PingPongRequest {
   timestamp: number;
 }
 
-interface CallDetailsRequest {
+export interface CallDetailsRequest {
   interaction_type: "call_details";
   call: any;
 }

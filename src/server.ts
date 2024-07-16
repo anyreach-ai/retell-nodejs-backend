@@ -3,40 +3,37 @@ import expressWs from "express-ws";
 import { RawData, WebSocket } from "ws";
 import { createServer, Server as HTTPServer } from "http";
 import cors from "cors";
+import dotenv from 'dotenv';
 // import { TwilioClient } from "./twilio_api";
 import { Retell } from "retell-sdk";
 import RetellClient from 'retell-sdk'; // Adjusted import
-import { CustomLlmRequest, CustomLlmResponse } from "./types";
-import admin from 'firebase-admin';
-import dotenv from 'dotenv';
+import { CustomLlmRequest, CustomLlmResponse, ResponseRequiredRequest, ReminderRequiredRequest, CallDetailsRequest, Utterance } from "./types";
 
 dotenv.config();
 
-//initalizing firebase
-if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  console.error('GOOGLE_APPLICATION_CREDENTIALS is not set in .env');
-  process.exit(1);
-}
+// Firebase Admin SDK
+import admin from 'firebase-admin';
 
-if (!process.env.FIREBASE_PROJECT_ID) {
-  console.error('FIREBASE_PROJECT_ID is not set in .env');
-  process.exit(1);
-}
+// Initialize Firebase Admin SDK with environment variables
+const serviceAccount = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+};
 
 admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
+  credential: admin.credential.cert(serviceAccount),
   databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
 });
 
 const db = admin.firestore();
 
-
 // Any one of these following LLM clients can be used to generate responses.
 import { FunctionCallingLlmClient } from "./llms/llm_openai_func_call";
 // import { DemoLlmClient } from "./llms/llm_azure_openai";
 // import { FunctionCallingLlmClient } from "./llms/llm_azure_openai_func_call_end_call";
-// import { FunctionCallingLlmClient } from "./llms/llm_azure_openai_func_call";
-// import { DemoLlmClient } from "./llms/llm_openrouter";
+// import { FunctionCallingLlmClient from "./llms/llm_azure_openai_func_call";
+// import { DemoLlmClient from "./llms/llm_openrouter";
 
 export class Server {
   private httpServer: HTTPServer;
@@ -172,34 +169,24 @@ export class Server {
             }
             const request: CustomLlmRequest = JSON.parse(data.toString());
 
-            // There are 5 types of interaction_type: call_details, ping_pong, update_only,response_required, and reminder_required.
-            // Not all of them need to be handled, only response_required and reminder_required.
-            if (request.interaction_type === "call_details") {
+            // Type guards to ensure the request has the 'call' property
+            if (isResponseRequiredRequest(request) || isReminderRequiredRequest(request)) {
+              const transcriptData = {
+                callId: callId, // Using callId from the URL parameter
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                transcript: request.transcript.map((utt: Utterance) => utt.content).join(" "),
+              };
+
+              await db.collection('transcripts').add(transcriptData);
+
+              llmClient.DraftResponse(request, ws);
+            } else if (isCallDetailsRequest(request)) {
               // print call details
               console.log("call details: ", request.call);
               // Send begin message to start the conversation
               llmClient.BeginMessage(ws);
-            } else if (
-              request.interaction_type === "reminder_required" ||
-              request.interaction_type === "response_required"
-            ) {
-              console.clear();
-              console.log("req", request);
-
-              // Save transcript to Firestore
-              if ('call' in request){
-                const transcriptData = {
-                callId: request.call.call_id,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                transcript: request.transcript,
-              };
-
-              await db.collection('transcripts').add(transcriptData);
-              }
-
-              llmClient.DraftResponse(request, ws);
             } else if (request.interaction_type === "ping_pong") {
-              let pingpongResponse: CustomLlmResponse = {
+              const pingpongResponse: CustomLlmResponse = {
                 response_type: "ping_pong",
                 timestamp: request.timestamp,
               };
@@ -215,4 +202,17 @@ export class Server {
       },
     );
   }
+}
+
+// Type guards
+function isResponseRequiredRequest(request: CustomLlmRequest): request is ResponseRequiredRequest {
+  return request.interaction_type === 'response_required';
+}
+
+function isReminderRequiredRequest(request: CustomLlmRequest): request is ReminderRequiredRequest {
+  return request.interaction_type === 'reminder_required';
+}
+
+function isCallDetailsRequest(request: CustomLlmRequest): request is CallDetailsRequest {
+  return request.interaction_type === 'call_details';
 }
