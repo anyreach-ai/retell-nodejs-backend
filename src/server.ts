@@ -7,6 +7,21 @@ import cors from "cors";
 import { Retell } from "retell-sdk";
 import RetellClient from 'retell-sdk'; // Adjusted import
 import { CustomLlmRequest, CustomLlmResponse } from "./types";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Firebase Admin SDK
+import admin from 'firebase-admin';
+
+const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+});
+
+const db = admin.firestore();
 
 // Any one of these following LLM clients can be used to generate responses.
 import { FunctionCallingLlmClient } from "./llms/llm_openai_func_call";
@@ -29,8 +44,8 @@ export class Server {
     this.app.use(express.urlencoded({ extended: true }));
 
     const retellClient = new RetellClient({
-  apiKey: process.env.RETELL_API_KEY,
-});
+      apiKey: process.env.RETELL_API_KEY,
+    });
 
     // this.twilioClient = new TwilioClient(this.retellClient);
     // this.twilioClient.ListenTwilioVoiceWebhook(this.app);
@@ -97,18 +112,18 @@ export class Server {
         const { agent_id } = req.body;
 
         try {
-    const callResponse = await this.retellClient.call.createWebCall({
-      agent_id: agent_id,
-    });
+          const callResponse = await this.retellClient.call.createWebCall({
+            agent_id: agent_id,
+          });
 
-    // Send back the successful response to the client
-    res.json(callResponse);
-  } catch (error) {
-    console.error('Error creating web call:', error);
-    // Send an error response back to the client
-    res.status(500).json({ error: 'Failed to create web call' });
-  }
-});
+          // Send back the successful response to the client
+          res.json(callResponse);
+        } catch (error) {
+          console.error('Error creating web call:', error);
+          // Send an error response back to the client
+          res.status(500).json({ error: 'Failed to create web call' });
+        }
+      });
   }
 
   /* Start a websocket server to exchange text input and output with Retell server. Retell server 
@@ -162,6 +177,18 @@ export class Server {
             ) {
               console.clear();
               console.log("req", request);
+
+              // Save transcript to Firestore
+              if ('call' in request){
+                const transcriptData = {
+                callId: request.call.call_id,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                transcript: request.transcript,
+              };
+
+              await db.collection('transcripts').add(transcriptData);
+              }
+
               llmClient.DraftResponse(request, ws);
             } else if (request.interaction_type === "ping_pong") {
               let pingpongResponse: CustomLlmResponse = {
