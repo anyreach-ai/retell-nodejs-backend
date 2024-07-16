@@ -7,21 +7,29 @@ import cors from "cors";
 import { Retell } from "retell-sdk";
 import RetellClient from 'retell-sdk'; // Adjusted import
 import { CustomLlmRequest, CustomLlmResponse } from "./types";
+import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Firebase Admin SDK
-import admin from 'firebase-admin';
+//initalizing firebase
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  console.error('GOOGLE_APPLICATION_CREDENTIALS is not set in .env');
+  process.exit(1);
+}
 
-const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+if (!process.env.FIREBASE_PROJECT_ID) {
+  console.error('FIREBASE_PROJECT_ID is not set in .env');
+  process.exit(1);
+}
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.applicationDefault(),
   databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
 });
 
 const db = admin.firestore();
+
 
 // Any one of these following LLM clients can be used to generate responses.
 import { FunctionCallingLlmClient } from "./llms/llm_openai_func_call";
