@@ -80,7 +80,7 @@ web_modules/
 .env.local
 
 # service account file
-service-account-file.json
+call-transcription-service-account-key.json
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -135,4 +135,5 @@ dist
 .env.retell
 .env.development
 .env
+
 
