@@ -4,29 +4,13 @@ import { RawData, WebSocket } from "ws";
 import { createServer, Server as HTTPServer } from "http";
 import cors from "cors";
 import dotenv from 'dotenv';
+import { db, admin } from "./firebase"; // Import Firebase
+import { CustomLlmRequest, CustomLlmResponse, ResponseRequiredRequest, ReminderRequiredRequest, CallDetailsRequest, Utterance } from "./types";
 // import { TwilioClient } from "./twilio_api";
 import { Retell } from "retell-sdk";
 import RetellClient from 'retell-sdk'; // Adjusted import
-import { CustomLlmRequest, CustomLlmResponse, ResponseRequiredRequest, ReminderRequiredRequest, CallDetailsRequest, Utterance } from "./types";
 
 dotenv.config();
-
-// Firebase Admin SDK
-import admin from 'firebase-admin';
-
-// Initialize Firebase Admin SDK with environment variables
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-};
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
-});
-
-const db = admin.firestore();
 
 // Any one of these following LLM clients can be used to generate responses.
 import { FunctionCallingLlmClient } from "./llms/llm_openai_func_call";
