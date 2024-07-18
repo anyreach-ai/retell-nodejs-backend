@@ -158,7 +158,7 @@ export class Server {
               const transcriptData = {
                 callId: callId, // Using callId from the URL parameter
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                transcript: request.transcript.map((utt: Utterance) => utt.content).join(" "),
+                transcript: request.transcript.map((utt: Utterance) => utt.content)
               };
 
               await db.collection('transcripts').add(transcriptData);
