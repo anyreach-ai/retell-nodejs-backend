@@ -9,6 +9,7 @@ import { CustomLlmRequest, CustomLlmResponse, ResponseRequiredRequest, ReminderR
 // import { TwilioClient } from "./twilio_api";
 import { Retell } from "retell-sdk";
 import RetellClient from 'retell-sdk'; // Adjusted import
+import axios from 'axios';
 
 dotenv.config();
 
@@ -44,6 +45,7 @@ export class Server {
     this.handleRegisterCallAPI();
     this.handleWebhook();
     this.handlePromptAPI();
+    this.handleCreateAgentAPI(); // Add create agent API handler
 
   }
 
@@ -104,7 +106,7 @@ export class Server {
           res.json(callResponse);
         } catch (error) {
           console.error('Error creating web call:', error);
-          // Send an error response back to the client
+// Send an error response back to the client
           res.status(500).json({ error: 'Failed to create web call' });
         }
       });
@@ -148,9 +150,9 @@ export class Server {
             }
             const request: CustomLlmRequest = JSON.parse(data.toString());
 
-            // Type guards to ensure the request has the 'call' property
+// Type guards to ensure the request has the 'call' property
             if (isResponseRequiredRequest(request) || isReminderRequiredRequest(request)) {
-              const transcriptData = {
+                            const transcriptData = {
                 callId: callId, // Using callId from the URL parameter
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 transcript: request.transcript.map((utt: Utterance) => utt.content)
@@ -160,9 +162,9 @@ export class Server {
 
               llmClient.DraftResponse(request, ws);
             } else if (isCallDetailsRequest(request)) {
-              // print call details
+// print call details
               console.log("call details: ", request.call);
-              // Send begin message to start the conversation
+// Send begin message to start the conversation
               llmClient.BeginMessage(ws);
             } else if (request.interaction_type === "ping_pong") {
               const pingpongResponse: CustomLlmResponse = {
@@ -181,7 +183,7 @@ export class Server {
       },
     );
   }
-   handlePromptAPI() {
+  handlePromptAPI() {
     this.app.post('/set-prompts', (req: Request, res: Response) => {
       const { newBeginSentence, newAgentPrompt } = req.body;
       if (newBeginSentence) beginSentence = newBeginSentence;
@@ -193,8 +195,75 @@ export class Server {
       res.json({ beginSentence, agentPrompt });
     });
   }
-}
 
+  handleCreateAgentAPI() {
+    this.app.post('/create-agent', async (req: Request, res: Response) => {
+      const {
+        llm_websocket_url,
+        agent_name,
+        voice_id,
+        fallback_voice_ids,
+        voice_temperature,
+        voice_speed,
+        responsiveness,
+        interruption_sensitivity,
+        enable_backchannel,
+        backchannel_frequency,
+        backchannel_words,
+        reminder_trigger_ms,
+        reminder_max_count,
+        ambient_sound,
+        ambient_sound_volume,
+        language,
+        webhook_url,
+        boosted_keywords,
+        opt_out_sensitive_data_storage,
+        pronunciation_dictionary,
+        normalize_for_speech,
+        end_call_after_silence_ms
+      } = req.body;
+
+      const apiKey = process.env.RETELL_API_KEY;
+
+      try {
+        const response = await axios.post('https://api.retell.com/create-agent', {
+          llm_websocket_url,
+          agent_name,
+          voice_id,
+          fallback_voice_ids,
+          voice_temperature,
+          voice_speed,
+          responsiveness,
+          interruption_sensitivity,
+          enable_backchannel,
+          backchannel_frequency,
+          backchannel_words,
+          reminder_trigger_ms,
+          reminder_max_count,
+          ambient_sound,
+          ambient_sound_volume,
+          language,
+          webhook_url,
+          boosted_keywords,
+          opt_out_sensitive_data_storage,
+          pronunciation_dictionary,
+          normalize_for_speech,
+          end_call_after_silence_ms
+        }, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        res.status(201).json(response.data);
+      } catch (error) {
+        console.error('Error creating agent:', error);
+        res.status(500).json({ error: 'Failed to create agent' });
+      }
+    });
+  }
+}
 
 // Type guards
 function isResponseRequiredRequest(request: CustomLlmRequest): request is ResponseRequiredRequest {
