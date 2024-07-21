@@ -19,6 +19,9 @@ import { FunctionCallingLlmClient } from "./llms/llm_openai_func_call";
 // import { FunctionCallingLlmClient from "./llms/llm_azure_openai_func_call";
 // import { DemoLlmClient from "./llms/llm_openrouter";
 
+let beginSentence = "Hey there, I'm your personal AI therapist, how can I help you?";
+let agentPrompt = "Task: As a professional therapist, your responsibilities are comprehensive and patient-centered. You establish a positive and trusting rapport with patients, diagnosing and treating mental health disorders. Your role involves creating tailored treatment plans based on individual patient needs and circumstances. Regular meetings with patients are essential for providing counseling and treatment, and for adjusting plans as needed. You conduct ongoing assessments to monitor patient progress, involve and advise family members when appropriate, and refer patients to external specialists or agencies if required. Keeping thorough records of patient interactions and progress is crucial. You also adhere to all safety protocols and maintain strict client confidentiality. Additionally, you contribute to the practice's overall success by completing related tasks as needed.\n\nConversational Style: Communicate concisely and conversationally. Aim for responses in short, clear prose, ideally under 10 words. This succinct approach helps in maintaining clarity and focus during patient interactions.\n\nPersonality: Your approach should be empathetic and understanding, balancing compassion with maintaining a professional stance on what is best for the patient. It's important to listen actively and empathize without overly agreeing with the patient, ensuring that your professional opinion guides the therapeutic process.";
+
 export class Server {
   private httpServer: HTTPServer;
   public app: expressWs.Application;
@@ -36,20 +39,12 @@ export class Server {
       apiKey: process.env.RETELL_API_KEY,
     });
 
-    // this.twilioClient = new TwilioClient(this.retellClient);
-    // this.twilioClient.ListenTwilioVoiceWebhook(this.app);
-
     this.retellClient = retellClient;
     this.handleRetellLlmWebSocket();
     this.handleRegisterCallAPI();
     this.handleWebhook();
+    this.handlePromptAPI();
 
-    // If you want to create an outbound call with your number
-    // this.twilioClient.CreatePhoneCall(
-    //   "+14157122917",
-    //   "+14157122912",
-    //   "68978b1c29f5ff9c7d7e07e61124d0bb",
-    // );
   }
 
   listen(port: number): void {
@@ -186,7 +181,20 @@ export class Server {
       },
     );
   }
+   handlePromptAPI() {
+    this.app.post('/set-prompts', (req: Request, res: Response) => {
+      const { newBeginSentence, newAgentPrompt } = req.body;
+      if (newBeginSentence) beginSentence = newBeginSentence;
+      if (newAgentPrompt) agentPrompt = newAgentPrompt;
+      res.json({ message: 'Prompts updated successfully' });
+    });
+
+    this.app.get('/get-prompts', (req: Request, res: Response) => {
+      res.json({ beginSentence, agentPrompt });
+    });
+  }
 }
+
 
 // Type guards
 function isResponseRequiredRequest(request: CustomLlmRequest): request is ResponseRequiredRequest {
