@@ -15,6 +15,8 @@
     "express-ws": "^5.0.2",
     "firebase-admin": "^12.2.0",
     "install": "^0.13.0",
+    "latest": "^0.2.0",
+    "n": "^9.2.3",
     "npm": "^10.8.2",
     "openai": "^4.26.0",
     "retell-client-js-sdk": "^1.0.0",
